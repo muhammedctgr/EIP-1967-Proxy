@@ -1,66 +1,34 @@
-## Foundry
+## EIP-1967
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+**Ethereum Improvement Proposal (now ERC)-1967.**
 
-Foundry consists of:
+The need to regularly utilize storage to reference things in implementation (specifically the implementation address) led to the desire for EIP-1967: Standard Proxy Storage Slots. This proposal would allocate standardized slots in storage specifically for use by proxies.
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+This SmallProxy example contains a lot of Yul. Yul is a sort of in-line Assembly that allows you to write really low-level code. Like anything low-level it comes with increased risk and severity of mistakes, it's good to avoid using Yul as often as you can justify.
 
-## Documentation
+Now, within SmallProxy we're importing Proxy.sol from our good friends OpenZeppelin. Looking at the code, we can get a better idea of how things are actually being handled.
 
-https://book.getfoundry.sh/
+There are really only 2 functions in this contract (ignoring the virtual _implementation function). We have _delegate, fallback/_fallback. The fallback functions simply route unrecognized call data to the _delegate function which then routes the call to an implementation contract.
 
-## Usage
+In SmallProxy.sol, we only have 2 functions, setImplementation and _implementation, the aforementioned virtual function.
 
-### Build
+This virtual function is returning the implementation address and showcases the need for our next topic...
 
-```shell
-$ forge build
+Upgrading SmallProxy.sol
+Now, let's demonstrate how upgrading this protocol would work. Add another contract to SmallProxy.sol:
+
+```
+contract ImplementationB {
+    uint256 public value;
+​
+    function setValue(uint256 newValue) public {
+        value = newValue + 2;
+    }
+}
 ```
 
-### Test
+Selector Clashes
+One quick final note on function selector clashes, in our example here, SmallProxy.sol only really has one function setImplementation, but if the implementation contract also had a function called setImplementation, it would be easy to see how this conflict could occur. Were this the case, it would be impossible to call the setImplementation function contained by the Implementation contract, because it would always be processed by the proxy.
 
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+Wrap Up
+Hopefully this minimalistic example has shed some light on the power of upgradeable proxies. This kind of power should also give you pause and make you consider the effects of trusting this degree of centrality to the protocol developers.
